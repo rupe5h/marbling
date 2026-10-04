@@ -1,0 +1,374 @@
+<div class="inner">
+  <header>
+    <h1>About marbling</h1>
+    <button class="close">Close</button>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#about-marbling">What is marbling</a>
+    <a href="#about-digital">Digital marbling</a>
+    <a href="#about-tools">How the tools work</a>
+    <a href="#about-sources">Sources and credits</a>
+    <a href="#about-ai">Made with AI</a>
+    <a href="#about-author">Author's note</a>
+  </nav>
+
+  <section id="about-marbling">
+    <h2>What is marbling</h2>
+    <p>
+      Marbling is a way of decorating a surface with colors floated on liquid. Paint or ink is dropped onto
+      a bath, either plain water or a <em>size</em> thickened with carrageenan from seaweed. A little surfactant
+      (traditionally ox gall) makes each drop spread into a thin disc that pushes the earlier colors outward
+      into rings. The marbler then drags a stylus, rake or comb through the floating colors. Finally a sheet
+      of paper or cloth, treated with alum so the pigment sticks, is laid on the surface and lifted off with
+      the pattern on it. Every print is one of a kind. <a class="ref" href="#ref-wiki">[4]</a>
+    </p>
+    <p>
+      The oldest known tradition is Japanese <em>suminagashi</em> (“floating ink”): marbled papers appear in
+      a 12th-century anthology of poems, the <em>Sanjūrokunin-shū</em>. Marbling on a thickened bath developed
+      in Persia and Central Asia by the late 15th century and became the Turkish art of <em>ebru</em>. It
+      reached Europe in the 17th century, and marbled papers became the classic covers and endpapers of
+      bound books. <a class="ref" href="#ref-wiki">[4]</a> <a class="ref" href="#ref-lu">[1]</a>
+    </p>
+    <h3>Why marbling can be computed exactly</h3>
+    <p>
+      If the marbler moves slowly, the floating layer of paint behaves as a two-dimensional, incompressible,
+      viscous (Newtonian) fluid. A rake stretches and folds the boundaries between colors but never tears
+      them or changes how they connect. A raking can even be undone by drawing the rake back to where it
+      started. Mathematically, each motion is a <em>homeomorphism</em>: a continuous map of the surface onto
+      itself with a continuous inverse. Many marbling motions can be written as exact, closed-form maps of
+      this kind. <a class="ref" href="#ref-pst">[3]</a>
+    </p>
+  </section>
+
+  <section id="about-digital">
+    <h2>What is digital marbling</h2>
+    <p>
+      One way to marble on a computer is to simulate the fluid: solve the equations of fluid flow on a grid
+      and carry the colors along. That is general but slow, and the colors blur as they are moved from cell
+      to cell. Lu, Jaffer, Jin, Zhao and Mao took another route in <em>Mathematical Marbling</em>
+      <a class="ref" href="#ref-lu">[1]</a>. They describe each marbling operation as a closed-form formula
+      that says where every point of the surface moves to. Those formulas compose and can be inverted, they
+      are easy to compute in parallel, and they stay sharp at any resolution. Jaffer later derived exact
+      formulas for single stylus strokes and for vortices from the physics of slow viscous flow, which is
+      orders of magnitude faster than finite-element simulation.
+    </p>
+    <h3>How this app works</h3>
+    <ul>
+      <li>
+        Everything you do is recorded as an <strong>action</strong> in a log: a drop, a rake, a stir, and
+        so on. Each action is one of those invertible maps.
+      </li>
+      <li>
+        To color a pixel, the GPU walks it <strong>backward</strong> through the log, undoing the motions one
+        by one. If it lands inside a drop at the moment that drop was made, it takes the drop's color.
+        Otherwise it ends up showing the background. pst-marble renders the same way
+        <a class="ref" href="#ref-pst">[3]</a>. Colors come straight from the drops instead of being moved
+        from pixel to pixel, so a render is exact at any size, and <strong>Export PNG</strong> renders the
+        tank afresh at up to 4096 × 4096 pixels.
+      </li>
+      <li>
+        While you paint, the tank is kept as a pair of oversampled textures. Each gesture applies only its
+        new actions on top of the previous state, so a long history doesn't slow it down. A stroke in progress
+        resamples that state every frame to keep up with the pointer. When it ends, it is re-rendered exactly,
+        and whenever you pause, a supersampled render of the whole log is refined in the background, a strip
+        at a time, without blocking input.
+      </li>
+      <li>
+        Undo and redo replay the log, with an exact render saved every 200 actions as a checkpoint.
+        <strong>Export preset</strong> saves the log as JSON, which <strong>Import preset</strong> (in the
+        gallery) plays back step by step.
+      </li>
+      <li>
+        Units follow pst-marble: the tank is 1 m square, so lengths in the settings are in millimetres, speeds
+        in mm/s and viscosity in mm²/s. Settings from pst-marble's examples therefore carry over unchanged, and several
+        of its examples are among the built-in presets.
+      </li>
+    </ul>
+  </section>
+
+  <section id="about-tools">
+    <h2>How the tools work</h2>
+    <p>
+      On a computer the tools are in a drawer on the left: the tab on its edge opens and closes it, and you
+      can keep working with it closed. On a phone they sit below the tank. Each picture below was rendered
+      by the app from a few actions. The usage notes and settings listed under each tool come straight from
+      the tool itself.
+    </p>
+
+    <h3 class="group">Paint</h3>
+    <p>
+      The <strong>Paint</strong> button opens a menu of the ways to drop paint. Patterns cycle through the
+      palette in order, or use only the selected color when <em>Cycle colors</em> is off.
+    </p>
+
+    <section data-tool="drop">
+      <figure data-example="drop"><figcaption>Five drops, each pushing the earlier ones aside</figcaption></figure>
+      <h4>Drop</h4>
+      <p>
+        A new drop of radius <var>r</var> at <var>c</var> keeps its own color and pushes all the paint around
+        it outward. The pushed paint keeps its area, so a circle around the drop grows to enclose the drop's
+        area as well <a class="ref" href="#ref-lu">[1]</a>:
+      </p>
+      <p class="formula">p′ = c + (p − c) · √(1 + r² / |p − c|²)</p>
+      <p>Far from the drop, almost nothing moves. Close to it, earlier drops are squeezed into thin crescents.</p>
+    </section>
+
+    <section data-tool="grid">
+      <figure data-example="grid"><figcaption>A 7 × 7 grid of drops</figcaption></figure>
+      <h4>Grid</h4>
+      <p>
+        Drops in rows and columns, dropped one after another, so later drops push earlier ones out of round.
+        <em>Serpentine order</em> runs alternate rows backward, as pst-marble's <code>serpentine-drops</code>
+        does, and <em>Jitter</em> nudges every drop by a random amount.
+      </p>
+    </section>
+
+    <section data-tool="concentric">
+      <figure data-example="concentric"><figcaption>Twenty concentric rings</figcaption></figure>
+      <h4>Concentric</h4>
+      <p>
+        Drops are dropped on the same spot, largest first, with radii <var>t</var>·√(2<var>n</var>+1). Each new
+        drop pushes the earlier ones out into a ring, and these radii make every ring the same thickness
+        <var>t</var>. This is pst-marble's <code>concentric-rings</code>, the usual starting point for the
+        deformation tools.
+      </p>
+    </section>
+
+    <section data-tool="line">
+      <figure data-example="line"><figcaption>Three lines of nine drops</figcaption></figure>
+      <h4>Line</h4>
+      <p>Evenly spaced drops between two points (pst-marble's <code>line-drops</code>).</p>
+    </section>
+
+    <section data-tool="coil">
+      <figure data-example="coil"><figcaption>A spiral of 80 drops</figcaption></figure>
+      <h4>Coil</h4>
+      <p>
+        Drops along a spiral (pst-marble's <code>coil-drops</code>). Each drop is one <em>arc step</em> along
+        the curve from the last, and the spiral's radius grows by the <em>radius step</em> each time.
+      </p>
+    </section>
+
+    <section data-tool="uniform">
+      <figure data-example="uniform"><figcaption>150 drops scattered over the tank</figcaption></figure>
+      <h4>Uniform</h4>
+      <p>
+        Drops scattered uniformly at random over a rectangle (pst-marble's <code>uniform-drops</code>), like
+        paint flicked from a brush. This is the basis of the traditional “stone” patterns.
+      </p>
+    </section>
+
+    <section data-tool="normal">
+      <figure data-example="normal"><figcaption>150 drops in a Gaussian cloud</figcaption></figure>
+      <h4>Normal</h4>
+      <p>
+        Drops in a Gaussian cloud, thickest at the center, with spreads σ<sub>x</sub> and σ<sub>y</sub>
+        (pst-marble's <code>normal-drops</code>). Positions come from the Box–Muller transform.
+      </p>
+    </section>
+
+    <p class="tip">
+      The random patterns are seeded (<em>Random seed</em>, under Advanced options), so the preview you see
+      while hovering is exactly what drops. The seed advances after each pattern.
+    </p>
+
+    <h3 class="group">Deform</h3>
+    <p>
+      The other tools move the paint that is already on the bath. How far a motion reaches depends on the
+      bath's <strong>viscosity</strong> and on the speed and diameter of the tine, rod or stylus. For a rake
+      the influence falls off over a length <var>L</var> = <var>V</var>·<var>D</var>² / <var>ν</var>: a
+      faster or thicker tine drags paint over a wider band, and a more viscous bath keeps the disturbance
+      closer to the tine. Viscosity is under Advanced options.
+    </p>
+
+    <section data-tool="stylus">
+      <figure data-example="stylus"><figcaption>A wavy stylus stroke through concentric rings</figcaption></figure>
+      <h4>Stylus</h4>
+      <p>
+        A single pointed tool drawn through the paint, used for the short strokes of flowers and other
+        pictures. The flow around a slowly moving stylus is <em>Oseen flow</em>, and Jaffer gives its exact
+        displacement field. A stroke is applied in steps no longer
+        than <var>L</var>. Slow viscous flow is reversible, so the stroke is undone by running it backward.
+      </p>
+    </section>
+
+    <section data-tool="rake">
+      <figure data-example="rake"><figcaption>A rake of nine tines pulled through concentric rings</figcaption></figure>
+      <h4>Rake</h4>
+      <p>
+        A row of evenly spaced tines pulled straight across the tank. Every point moves in the direction of
+        the rake, by the distance the rake travels times a sum of one term per tine:
+      </p>
+      <p class="formula">shift = travel · Σ<sub>tines</sub> e<sup>−(distance to tine) / L</sup></p>
+      <p>
+        Paint right at a tine moves the whole way, and paint between tines lags behind, which draws out the
+        familiar combed points <a class="ref" href="#ref-lu">[1]</a>.
+        <em>Angle snap</em> keeps the direction to round angles.
+      </p>
+    </section>
+
+    <section data-tool="stir">
+      <figure data-example="stir"><figcaption>Three rods stirred a third of a turn through a grid of drops</figcaption></figure>
+      <h4>Stir</h4>
+      <p>
+        A circular rake: rods on circles around a center, all turned through the angle you sweep. Paint on a
+        rod's circle turns by that angle, and the turn fades with relative distance from the circle. Angular
+        speed and rod diameter play the roles that speed and tine diameter play for a rake. With several
+        rods the rings in between are dragged along at different rates.
+      </p>
+    </section>
+
+    <section data-tool="vortex">
+      <figure data-example="vortex"><figcaption>A vortex spun up in a grid of drops</figcaption></figure>
+      <h4>Vortex</h4>
+      <p>
+        A spinning whirl in the bath that slows as viscosity drains its energy: a <em>Lamb–Oseen vortex</em>.
+        Jaffer found a closed form for how far it turns the paint at distance <var>r</var>, given its
+        circulation Γ and how long it runs (<var>t</var>):
+      </p>
+      <p class="formula">θ(r) = Γ / ((4ν)<sup>3/4</sup> + (2πr² / t)<sup>3/4</sup>)<sup>4/3</sup></p>
+      <p>
+        The center turns the most, and the turn tapers off outward, winding drops into spirals. Real marbling
+        baths are usually too viscous for true vortices, which is why they are rare in traditional work.
+      </p>
+    </section>
+
+    <section data-tool="jiggle">
+      <figure data-example="jiggle"><figcaption>A jiggle across horizontal bands</figcaption></figure>
+      <h4>Jiggle</h4>
+      <p>
+        A sinusoidal shake of the whole tank. Along the drag direction <var>u</var>, the paint at phase
+        <var>φ</var> = <var>k</var>(<var>p</var>·<var>u</var>) moves by <var>A</var> sin <var>φ</var> along
+        <var>u</var> and by <var>B</var> cos <var>φ</var> across it. The across amplitude (the drag length)
+        turns straight bands into waves. With both amplitudes set, each point is displaced around an ellipse.
+        Undoing it
+        means solving <var>φ</var> + <var>kA</var> sin <var>φ</var> = <var>φ</var>′, so <var>kA</var> is
+        kept below 1 to keep the map invertible.
+      </p>
+    </section>
+
+    <section data-tool="wriggle">
+      <figure data-example="wriggle"><figcaption>Concentric rings wriggled around a point below their center</figcaption></figure>
+      <h4>Wriggle</h4>
+      <p>
+        Jiggle in polar coordinates around a center. Each ring of radius <var>r</var> turns by
+        <var>B</var> cos(<var>kr</var>) and moves outward by <var>A</var> sin(<var>kr</var>), so neighboring
+        rings twist back and forth in opposite directions.
+      </p>
+    </section>
+
+    <section data-tool="shift">
+      <figure data-example="shift"><figcaption>Concentric rings shifted up and to the right</figcaption></figure>
+      <h4>Shift</h4>
+      <p>
+        Slides the whole bath without deforming it: every point moves by the same offset <var>d</var>.
+      </p>
+      <p class="formula">p′ = p + d</p>
+      <p>
+        Paint that leaves the tank over one edge is still in the log, so shifting back brings it back. The
+        paint that comes in over the other edge is whatever the drops pushed out past it. pst-marble's
+        <code>shift</code> places a design on the page this way, and several of the presets use it to center
+        theirs.
+      </p>
+    </section>
+
+    <h3 class="group">The tank</h3>
+    <ul>
+      <li>
+        <strong>Colors</strong>: the palette (pick a swatch, change it, add or remove colors) and the
+        <strong>background</strong>, which is the color of the bath wherever no paint has landed.
+      </li>
+      <li>
+        <strong>Undo / Redo</strong> (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z) step through whole gestures.
+        <strong>Clear</strong> empties the tank, after asking, since it can't be undone.
+      </li>
+      <li>
+        <strong>Export PNG</strong> renders the tank exactly at 1024, 2048 or 4096 pixels square.
+        <strong>Export preset</strong> saves it as JSON to share or import later.
+      </li>
+      <li>
+        <strong>Presets</strong>: the gallery. Picking a preset plays it back step by step, with each rake,
+        stir and vortex drawn on the tank as it sweeps in. Click the tank or press Esc to skip to the end.
+        Open the tools afterward to keep working on it.
+      </li>
+    </ul>
+  </section>
+
+  <section id="about-sources">
+    <h2>Sources and credits</h2>
+    <h3>Papers and references</h3>
+    <ol class="refs">
+      <li id="ref-lu">
+        S. Lu, A. Jaffer, X. Jin, H. Zhao and X. Mao. “Mathematical Marbling.” <em>IEEE Computer Graphics and
+        Applications</em> 32(6), 26–35, 2012.
+        <a href="https://doi.org/10.1109/MCG.2011.51">doi:10.1109/MCG.2011.51</a>.
+        <span class="why">The closed-form approach: drop and rake maps, and rendering with inverse maps.</span>
+      </li>
+      <li id="ref-site">
+        A. Jaffer. <em>Marbling</em>.
+        <a href="https://people.csail.mit.edu/jaffer/Marbling/">people.csail.mit.edu/jaffer/Marbling</a>.
+        <span class="why">An overview of the mathematics of marbling, with the paper above and more.</span>
+      </li>
+      <li id="ref-pst">
+        A. Jaffer, J. Gilg and M. Luque. <em>pst-marble</em>, version 1.6 (2019-05-10). Copyright © 2018–2019
+        Aubrey Jaffer. <a href="https://www.latex-project.org/lppl/lppl-1-3c/">LaTeX Project Public License
+        1.3c</a>. <a href="https://ctan.org/pkg/pst-marble">ctan.org/pkg/pst-marble</a>.
+        <span class="why">The code this app is ported from.</span>
+      </li>
+      <li id="ref-wiki">
+        “Paper marbling.” <em>Wikipedia</em>.
+        <a href="https://en.wikipedia.org/wiki/Paper_marbling">en.wikipedia.org/wiki/Paper_marbling</a>.
+        <span class="why">History and traditional technique.</span>
+      </li>
+    </ol>
+
+    <h3>Code</h3>
+    <ul>
+      <li>
+        <strong>pst-marble</strong> <a class="ref" href="#ref-pst">[3]</a>. Aubrey Jaffer wrote the marbling
+        actions in PostScript (<code>pst-marble.pro</code>), and Jürgen Gilg and Manuel Luque turned them into
+        a PSTricks package for LaTeX. This app is a port of that code to TypeScript and WebGPU:
+        <ul>
+          <li>the actions and their parameters and units (<code>src/marble/actions.ts</code>);</li>
+          <li>
+            the forward and inverse maps (<code>src/marble/math.ts</code>, and the WGSL compute shader
+            <code>src/shaders/marble.wgsl</code>, which colors pixels the way pst-marble's
+            <code>actions2rgb</code> does);
+          </li>
+          <li>the drop patterns (<code>src/marble/patterns.ts</code>) and the default palette;</li>
+          <li>
+            the presets Bouquet, Contour, Curl, Eggcrate, Latte, Leaves, Moiré, Nautilus, Nonpareil, Rollers,
+            Spanish wave and Wreath, from pst-marble's example files.
+          </li>
+        </ul>
+        Each ported source file credits the authors and license and names the pst-marble procedures it comes
+        from. This is a modified port, not pst-marble itself: the changes are listed under
+        <a href="https://github.com/rupe5h/marbling/blob/main/web/README.md#credits">Credits</a> in the
+        project's README, and problems with it belong to this project, not to the pst-marble authors.
+      </li>
+      <li>
+        Built with <a href="https://www.typescriptlang.org/">TypeScript</a>,
+        <a href="https://www.w3.org/TR/webgpu/">WebGPU</a> and <a href="https://vite.dev/">Vite</a>, and
+        tested with <a href="https://vitest.dev/">Vitest</a>.
+      </li>
+      <li>This project's source code: <a href="https://github.com/rupe5h/marbling">github.com/rupe5h/marbling</a>.</li>
+    </ul>
+  </section>
+
+  <section id="about-ai">
+    <h2>Made with AI</h2>
+    <p>
+      The code for this app was developed with Claude Code.
+    </p>
+  </section>
+
+  <section id="about-author">
+    <h2>Author's note</h2>
+    <p>
+      The purpose of this project was to visualise the creation process in the browser, which could not be
+      done with the original code. pst-marble renders only the finished design; here you can watch it take
+      shape. The project is at <a href="https://github.com/rupe5h/marbling">github.com/rupe5h/marbling</a>.
+    </p>
+  </section>
+</div>

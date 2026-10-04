@@ -1,0 +1,419 @@
+:root {
+  --bg: #16171b;
+  --panel: #1f2026;
+  --line: #30323a;
+  --text: #e6e6ea;
+  --muted: #9a9ca6;
+  --accent: #e0a63a;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { display: flex; overflow: hidden; }
+
+/* A column, so the export block (.export) can sit at the bottom when there is room to spare. */
+#panel {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 14px 14px 0;
+  scrollbar-width: none;
+  transition: margin-left 0.3s ease, visibility 0.3s;
+}
+/* Scrolls without a scrollbar, which would otherwise draw a light bar beside the dark panel when the system
+   always shows scrollbars. (scrollbar-width covers current browsers; this covers older Chrome and Safari.) */
+#panel::-webkit-scrollbar { display: none; }
+#panel > * { flex: none; }
+body.tools-hidden #panel { margin-left: -280px; visibility: hidden; }
+h1 { font-size: 18px; margin: 0 0 10px; letter-spacing: 0.02em; }
+/* Title and navigation on top, then undo, redo and clear as a row of their own. */
+.head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'title actions' 'history history';
+  align-items: center;
+  gap: 14px 8px;
+  margin-bottom: 16px;
+}
+.head h1 { grid-area: title; margin: 0; }
+.head .actions { grid-area: actions; display: flex; gap: 8px; }
+.head .icon { font-size: 16px; line-height: 1; }
+.history { grid-area: history; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.history button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 9px; }
+.history .glyph { font-size: 16px; line-height: 1; }
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 18px 0 8px;
+}
+section { border-top: 1px solid var(--line); }
+
+button, select, input[type='number'] {
+  font: inherit;
+  color: var(--text);
+  background: #2a2c34;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: #4a4d58; }
+button:disabled { opacity: 0.4; cursor: default; }
+button.active { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+button.primary { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #f0b850; border-color: #f0b850; }
+button.danger { background: #c4473a; color: #fff; border-color: #c4473a; font-weight: 600; }
+button.danger:hover:not(:disabled) { background: #d65848; border-color: #d65848; }
+input[type='number'] { width: 90px; cursor: text; }
+
+/* As many columns as fit: 3 in the side panel, more across the bottom panel. */
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.tools .paint { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+
+/* Paint tool menu (a popover; placed by Panel.placeMenu). */
+.menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+.menu:popover-open { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 6px; }
+/* The rest of the panel blurs behind an open menu. */
+#panel > :not(.menu) { transition: filter 0.2s; }
+#panel:has(> .menu:popover-open) > :not(.menu) { filter: blur(3px); }
+/* Clear's confirmation: the question above Cancel and Clear tank. */
+.confirm { padding: 10px; }
+.confirm p { grid-column: 1 / -1; margin: 0 0 4px; line-height: 1.4; }
+
+.disclosure {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin: 8px 0 4px;
+  color: var(--muted);
+  background: none;
+}
+.disclosure::after { content: '▸'; }
+.disclosure[aria-expanded='true']::after { content: '▾'; }
+.row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.row > span { flex: 1; color: var(--muted); }
+
+/* Pinned to the bottom of the panel, and pushed down to it when the panel has room to spare. The negative
+   margins stretch its background edge to edge, so content scrolling behind it never shows at the sides. */
+.export {
+  position: sticky;
+  bottom: 0;
+  margin: auto -14px 0;
+  padding: 0 14px 16px;
+  background: var(--panel);
+}
+.export .row > * { flex: 1; }
+.export .primary { width: 100%; margin-top: 8px; padding: 9px; font-size: 14px; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+.swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+input[type='color'] {
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.param {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  grid-template-areas: 'label out' 'input input';
+  margin: 6px 0;
+  color: var(--muted);
+}
+.param > span { grid-area: label; }
+.param > output { grid-area: out; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.param > input[type='range'] { grid-area: input; width: 100%; accent-color: var(--accent); }
+.param > input[type='number'] { grid-area: out / out / input / input; justify-self: end; }
+.toggle { display: flex; align-items: center; gap: 6px; margin: 8px 0; color: var(--muted); }
+.hint { color: var(--text); line-height: 1.4; margin: 0 0 6px; }
+.note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+#stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+#tank {
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+#tank canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#overlay { cursor: crosshair; touch-action: none; }
+
+#status, #caption {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  padding: 6px 12px;
+  border-radius: 14px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+#status { top: 14px; }
+#caption { bottom: 14px; white-space: nowrap; }
+#caption small { font-size: inherit; color: var(--muted); margin-left: 8px; }
+#status.visible, #caption.visible { opacity: 1; }
+
+/* Desktop drawer tab on the stage's left edge, so it rides along with the panel. The tank layout in
+   main.ts keeps TAB_WIDTH clear on each side, so it never covers the tank. Small and dark beside the open
+   panel; bigger and lighter when the drawer is closed, so it is easy to find. */
+#drawer-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 16px;
+  height: 64px;
+  padding: 0;
+  color: var(--muted);
+  background: var(--panel);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  transition: opacity 0.3s, visibility 0.3s, width 0.3s, height 0.3s, color 0.15s, background 0.15s;
+}
+#drawer-toggle:hover { color: var(--text); }
+#drawer-toggle::before { content: '‹'; font-size: 16px; line-height: 1; }
+body.tools-hidden #drawer-toggle {
+  width: 24px;
+  height: 96px;
+  color: var(--text);
+  background: #3a3d48;
+  border-color: #5a5e6c;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.45);
+}
+body.tools-hidden #drawer-toggle:hover { color: #1a1a1a; background: var(--accent); border-color: var(--accent); }
+body.tools-hidden #drawer-toggle::before { content: '›'; font-size: 22px; }
+body.playing #drawer-toggle { opacity: 0; visibility: hidden; }
+
+/* Shown once a preset has played, until the tools are opened. On desktop the drawer tab stands in
+   for Show tools; on phones (below) both buttons show whenever the tools are hidden. */
+#viewbar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+body.tools-hidden.view-only:not(.playing) #viewbar { opacity: 1; visibility: visible; }
+#show-tools { display: none; }
+#viewbar button { background: rgba(0, 0, 0, 0.75); border-radius: 14px; padding: 6px 14px; }
+#viewbar button.primary { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+
+#gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 48px 32px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+#gallery.open { opacity: 1; visibility: visible; }
+#gallery .inner { max-width: 1100px; margin: 0 auto; }
+#gallery header { display: flex; align-items: center; gap: 12px; }
+#gallery h1 { font-size: 28px; margin: 0; }
+#gallery .about { margin-left: auto; }
+#gallery .lede { color: var(--muted); font-size: 14px; margin: 6px 0 28px; }
+#gallery .error { color: #f07a6a; font-size: 13px; margin: -16px 0 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 22px; }
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+}
+.card .thumb {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s, border-color 0.15s, color 0.15s;
+}
+.card img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.4s; }
+.card img.loaded { opacity: 1; }
+.card:hover .thumb, .card:focus-visible .thumb { transform: translateY(-3px); border-color: var(--accent); }
+.card:focus-visible { outline: none; }
+.card.blank .thumb { border: 2px dashed var(--line); color: var(--muted); font-size: 64px; font-weight: 200; }
+.card.blank:hover .thumb, .card.blank:focus-visible .thumb { color: var(--accent); }
+
+/* Docs (ui/about.html), over everything including the gallery. Headings and sections are restyled here
+   so the panel's small uppercase h2 and section rules don't apply. */
+#about {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 0 32px 64px;
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+#about.open { opacity: 1; visibility: visible; }
+#about .inner { max-width: 760px; margin: 0 auto; }
+#about header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 20px 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+#about h1 { font-size: 28px; margin: 0; }
+#about .close { margin-left: auto; font-size: 13px; }
+#about .toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 8px; font-size: 14px; }
+#about section { border-top: none; }
+#about > .inner > section { padding-top: 12px; scroll-margin-top: 72px; }
+#about h2 {
+  font-size: 22px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  margin: 28px 0 10px;
+}
+#about h3 { font-size: 17px; margin: 24px 0 8px; }
+#about h3.group { padding-top: 12px; border-top: 1px solid var(--line); }
+#about h4 { font-size: 15px; margin: 0 0 6px; }
+#about p, #about li { color: #c9cad1; }
+#about strong, #about em { color: var(--text); }
+#about a { color: var(--accent); }
+#about a.ref { text-decoration: none; font-size: 12px; vertical-align: super; line-height: 0; }
+#about code { font-size: 13px; color: var(--text); }
+#about .formula {
+  font-family: ui-serif, Georgia, serif;
+  font-size: 16px;
+  color: var(--text);
+  text-align: center;
+  margin: 10px 0;
+}
+#about [data-tool] { display: flow-root; padding: 18px 0 6px; scroll-margin-top: 72px; }
+#about [data-tool] + [data-tool] { border-top: 1px solid var(--line); }
+#about figure { float: right; width: 200px; margin: 4px 0 12px 22px; }
+#about:not(.can-render) figure { display: none; }
+#about figure img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#about figure img.loaded { opacity: 1; }
+#about figcaption { margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+#about .use { margin: 8px 0 0; }
+#about .settings { margin: 2px 0 8px; padding-left: 20px; columns: 2; font-size: 14px; }
+#about .settings .adv { margin-left: 6px; font-size: 11px; color: var(--muted); }
+#about .tip { font-size: 13px; }
+#about .refs li { margin-bottom: 10px; }
+#about .refs .why { display: block; font-size: 13px; color: var(--muted); }
+
+.unsupported { max-width: 420px; text-align: center; color: var(--muted); }
+.unsupported h2 { color: var(--text); font-size: 16px; text-transform: none; letter-spacing: 0; }
+
+/* Bigger targets for touch. */
+@media (pointer: coarse) {
+  button:not(.swatch), select { min-height: 36px; }
+  .swatch { width: 32px; height: 32px; }
+}
+
+/* Compact layout: the tank spans the width and the tools go below it, in the space the
+   square tank leaves free. Same query as COMPACT_QUERY in ui/panel.ts. */
+@media (orientation: portrait) and (max-width: 820px) {
+  body { flex-direction: column; height: 100dvh; }
+  #stage { order: -1; min-height: 0; }
+  #panel {
+    width: auto;
+    height: max(170px, calc(100dvh - 100vw));
+    border-right: none;
+    border-top: 1px solid var(--line);
+    padding: 0 12px calc(16px + env(safe-area-inset-bottom));
+    transition: height 0.3s ease, padding 0.3s ease, visibility 0.3s;
+  }
+  body.tools-hidden #panel { margin-left: 0; height: 0; padding-block: 0; border-top: none; }
+  #drawer-toggle { display: none; }
+  #show-tools { display: inline-block; }
+  body.tools-hidden:not(.playing) #viewbar { opacity: 1; visibility: visible; }
+  /* Undo, redo and presets stay in reach while the panel scrolls, on one row with icon-only undo and redo. */
+  .head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: 'title history actions';
+    column-gap: 6px;
+    margin: 0 -12px;
+    padding: 10px 12px;
+    background: var(--panel);
+  }
+  .history { display: flex; gap: 6px; }
+  .history .label { display: none; }
+  /* Too little height to pin it: it simply comes last. */
+  .export { position: static; margin: auto 0 0; padding: 0; }
+  h1 { font-size: 16px; }
+  h2 { margin: 12px 0 6px; }
+  .note { display: none; }
+  #gallery { padding: 24px 16px; }
+  #about { padding: 0 16px 48px; }
+  #about h1 { font-size: 22px; }
+  #about figure { float: none; width: min(100%, 280px); margin: 0 0 12px; }
+  #about .settings { columns: 1; }
+}
