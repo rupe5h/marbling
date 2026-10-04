@@ -3,9 +3,9 @@
 // pst-marble 1.6 by Aubrey Jaffer, Jürgen Gilg and Manuel Luque; the actions
 // are Jaffer's PostScript in dvips/pst-marble.pro. Copyright (C) 2018-2019
 // Aubrey Jaffer. LaTeX Project Public License 1.3c or later.
-// Source: https://ctan.org/pkg/pst-marble (unmodified copy in tex/pst-marble).
+// Source: https://ctan.org/pkg/pst-marble.
 // This is a modified port, not the original: the changes are listed under
-// "Credits" in web/README.md. Report problems with it to this project, not to
+// "Credits" in README.md. Report problems with it to this project, not to
 // the pst-marble authors. Each function names the procedure it comes from.
 //
 // Units: "world" coordinates span the tank as [-0.5, 0.5] along each axis

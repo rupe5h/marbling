@@ -1,14 +1,13 @@
-// Built-in presets, loaded from the JSON files in web/presets (the format of
+// Built-in presets, loaded from the JSON files in presets/ (the format of
 // Export preset). presets/order.json lists the files in gallery order.
 //
 // From pst-marble 1.6 by Aubrey Jaffer, Jürgen Gilg and Manuel Luque
 // (Copyright (C) 2018-2019 Aubrey Jaffer, LaTeX Project Public License 1.3c
 // or later, https://ctan.org/pkg/pst-marble): the default palette below, and
-// the presets Bouquet, Contour, Curl, Eggcrate, Latte, Leaves, Moiré,
-// Nautilus, Nonpareil, Rollers, Spanish wave and Wreath, which are pst-marble's
-// examples/*.tex (Spanish wave is Wave.tex) converted to action logs, without
-// the shadings and sprays some of them add. The other presets were made in
-// this app.
+// the presets Bouquet, Curl, Eggcrate, Latte, Leaves, Nonpareil, Rollers,
+// Spanish wave and Wreath, which are pst-marble's examples/*.tex (Spanish
+// wave is Wave.tex) converted to action logs, without the shadings and sprays
+// some of them add. The other presets were made in this app.
 
 import order from '../../presets/order.json';
 import type { RGB } from './actions';
@@ -28,7 +27,7 @@ export const PST_COLORS: RGB[] = [
   [0.624, 0.588, 0.439],
 ];
 
-/** Text of every preset file, keyed by path from web/ (e.g. /presets/curl.json). */
+/** Text of every preset file, keyed by path from the project root (e.g. /presets/curl.json). */
 export const PRESET_FILES = import.meta.glob<string>(['/presets/*.json', '!/presets/order.json'], {
   eager: true,
   query: '?raw',
